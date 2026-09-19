@@ -13,8 +13,12 @@ export type Asset = {
 };
 
 export const assetSeed: Asset[] = [
-  { ticker: "PETR4", name: "Petrobras", sector: "Petróleo e Gás", type: "Ação" },
   { ticker: "BBAS3", name: "Banco do Brasil", sector: "Financeiro", type: "Ação" },
-  { ticker: "TAEE11", name: "Taesa", sector: "Energia", type: "Unit" },
+  { ticker: "CMIG4", name: "Cemig", sector: "Energia Elétrica", type: "Ação" },
+  { ticker: "KLBN3", name: "Klabin", sector: "Papel e Celulose", type: "Ação" },
+  { ticker: "SAPR4", name: "Sanepar", sector: "Saneamento", type: "Ação" },
+  { ticker: "TAEE3", name: "Taesa", sector: "Energia Elétrica", type: "Ação" },
+  { ticker: "USIM3", name: "Usiminas", sector: "Siderurgia", type: "Ação" },
   { ticker: "MXRF11", name: "Maxi Renda", sector: "Fundos Imobiliários", type: "FII" },
+  { ticker: "VINO11", name: "Vinci Offices", sector: "Fundos Imobiliários", type: "FII" },
 ];

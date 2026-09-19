@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "import:b3": "tsx scripts/import-b3.ts",
-    "migrate": "tsx scripts/migrate.ts"
+    "import:operations": "tsx scripts/import-operations.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "sync:assets": "tsx scripts/sync-assets.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",

@@ -71,4 +71,105 @@ export async function fetchQuotes(tickers: string[]): Promise<QuoteMap> {
   return map;
 }
 
+/** Informação de referência de um ativo (nome e classificação). */
+export type AssetInfo = {
+  name: string;
+  sector: string;
+  type: string;
+};
+
+const BRAPI_LIST_URL = "https://brapi.dev/api/quote/list";
+
+/** Tradução dos setores genéricos (inglês) usados pela BRAPI. */
+const SECTOR_TRANSLATIONS: Record<string, string> = {
+  Finance: "Financeiro",
+  Utilities: "Utilidades Públicas",
+  "Energy Minerals": "Petróleo e Gás",
+  "Non-Energy Minerals": "Materiais Básicos",
+  "Industrial Services": "Serviços Industriais",
+  "Consumer Non-Durables": "Consumo",
+  "Consumer Durables": "Consumo",
+  "Technology Services": "Tecnologia",
+  "Electronic Technology": "Tecnologia",
+  "Health Technology": "Saúde",
+  "Health Services": "Saúde",
+  "Retail Trade": "Varejo",
+  Transportation: "Transporte",
+  "Process Industries": "Indústria",
+  "Producer Manufacturing": "Indústria",
+  Communications: "Comunicações",
+  "Commercial Services": "Serviços",
+  "Distribution Services": "Distribuição",
+  "Consumer Services": "Serviços",
+  Miscellaneous: "Outros",
+};
+
+async function requestAssetInfo(ticker: string): Promise<AssetInfo | null> {
+  const token = process.env.BRAPI_TOKEN;
+  const url = `${BRAPI_LIST_URL}?search=${encodeURIComponent(ticker)}`;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      stocks?: Array<{
+        stock?: string;
+        name?: string;
+        sector?: string | null;
+        subsector?: string | null;
+        type?: string;
+      }>;
+    };
+
+    const stock = (data.stocks ?? []).find((s) => s.stock === ticker);
+    if (!stock) return null;
+
+    const isFund = stock.type === "fund";
+    const sector = isFund
+      ? "Fundos Imobiliários"
+      : stock.subsector ||
+        (stock.sector
+          ? SECTOR_TRANSLATIONS[stock.sector] ?? stock.sector
+          : null) ||
+        "Outros";
+
+    return {
+      name: stock.name ?? ticker,
+      sector,
+      type: isFund ? "FII" : "Ação",
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Busca na BRAPI o nome e o setor de cada ativo (um por vez, em sequência,
+ * respeitando o limite do plano gratuito). Retorna apenas os resolvidos.
+ */
+export async function fetchAssetInfo(
+  tickers: string[],
+): Promise<Map<string, AssetInfo>> {
+  const unique = [...new Set(tickers)].filter(Boolean);
+  const map = new Map<string, AssetInfo>();
+
+  for (const ticker of unique) {
+    const info = await requestAssetInfo(ticker);
+    if (info) map.set(ticker, info);
+  }
+
+  return map;
+}
+
 

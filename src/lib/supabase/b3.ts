@@ -105,7 +105,11 @@ export async function insertOperations(ops: B3Operation[]): Promise<number> {
  * Reconsolida as posições a partir das operações salvas e grava em `positions`.
  * Mantém a lógica de consolidação (custo médio) separada da camada de banco.
  */
-export async function consolidateAndUpsertPositions(): Promise<Position[]> {
+export async function consolidateAndUpsertPositions(): Promise<{
+  positions: Position[];
+  updated: number;
+  removed: number;
+}> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     throw new Error(
@@ -139,24 +143,21 @@ export async function consolidateAndUpsertPositions(): Promise<Position[]> {
     if (error) throw new Error(`Falha ao gravar posições: ${error.message}`);
   }
 
-  // Remove posições que deixaram de existir (totalmente vendidas).
-  const currentTickers = new Set(positions.map((p) => p.ticker));
-  const { data: existing, error: existingError } = await supabase
-    .from("positions")
-    .select("ticker");
-  if (existingError) throw new Error(`Falha ao ler posições: ${existingError.message}`);
+  // Remove apenas posições que têm operações e ficaram totalmente vendidas.
+  // Posições vindas somente do snapshot (sem operações) são preservadas.
+  const consolidatedTickers = new Set(positions.map((p) => p.ticker));
+  const operationTickers = new Set(operations.map((op) => op.ticker));
+  const soldOut = [...operationTickers].filter(
+    (ticker) => !consolidatedTickers.has(ticker),
+  );
 
-  const stale = (existing ?? [])
-    .filter((r) => !currentTickers.has(r.ticker))
-    .map((r) => r.ticker);
-
-  if (stale.length > 0) {
+  if (soldOut.length > 0) {
     const { error: deleteError } = await supabase
       .from("positions")
       .delete()
-      .in("ticker", stale);
+      .in("ticker", soldOut);
     if (deleteError) throw new Error(`Falha ao remover posições: ${deleteError.message}`);
   }
 
-  return positions;
+  return { positions, updated: positions.length, removed: soldOut.length };
 }

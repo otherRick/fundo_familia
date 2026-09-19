@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ContributionForm } from "@/components/admin/contribution-form";
 import { ImportForm } from "@/components/admin/import-form";
+import { OperationForm } from "@/components/admin/operation-form";
+import { OperationsImportForm } from "@/components/admin/operations-import-form";
 import { getContributors } from "@/lib/contributions";
 import { listContributions } from "@/lib/supabase/contributions";
 
@@ -61,6 +63,24 @@ export default async function AdminPage() {
             Importar a posição atual da carteira (XLSX da B3).
           </p>
           <ImportForm />
+        </div>
+
+        <div className="mt-6 border-t pt-4">
+          <h3 className="text-sm font-medium">Importar negociações B3</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Importar o histórico de compras/vendas (XLSX da B3) para calcular o
+            custo médio e preencher &quot;Total investido&quot; e &quot;resultado&quot;.
+          </p>
+          <OperationsImportForm />
+        </div>
+
+        <div className="mt-6 border-t pt-4">
+          <h3 className="text-sm font-medium">Adicionar negociação manualmente</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Registrar uma compra ou venda avulsa — vale igual à importação pelo
+            Excel.
+          </p>
+          <OperationForm />
         </div>
       </section>
     </main>

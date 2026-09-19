@@ -14,20 +14,31 @@ export function Participants({ summary }: { summary: ContributorSummary[] }) {
         {summary.map((person) => (
           <li
             key={person.name}
-            className='flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border px-3 py-2'
+            className='flex items-center gap-x-3 rounded-lg border px-3 py-2'
           >
-            <span className='font-medium'>{person.name}</span>
-            <span className='font-semibold text-primary'>{formatBRL(person.total)}</span>
-            <span className='text-sm text-muted-foreground'>{formatPercent(person.percent)}</span>
+            <span
+              className='w-28 shrink-0 truncate font-medium sm:w-40'
+              title={person.name}
+            >
+              {person.name}
+            </span>
 
-            <div className='h-1.5 min-w-28 flex-1 rounded-full bg-muted'>
+            <span className='w-36 shrink-0 whitespace-nowrap text-right font-semibold text-primary tabular-nums'>
+              {formatBRL(person.total)}
+            </span>
+
+            <span className='w-14 shrink-0 whitespace-nowrap text-right text-sm text-muted-foreground tabular-nums'>
+              {formatPercent(person.percent)}
+            </span>
+
+            <div className='h-1.5 min-w-16 flex-1 rounded-full bg-muted'>
               <div
                 className='h-full rounded-full bg-primary'
                 style={{ width: `${Math.min(person.percent, 100)}%` }}
               />
             </div>
 
-            <div className='ml-auto'>
+            <div className='shrink-0'>
               <InvestDialog />
             </div>
           </li>

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { parsePositionXlsx } from "../src/lib/b3/position-xlsx";
+import { syncAssets } from "../src/lib/supabase/assets";
 import { getSupabaseServerClient } from "../src/lib/supabase/server";
 import { syncPositions } from "../src/lib/supabase/positions";
 
@@ -33,6 +34,7 @@ async function main() {
   }
 
   const { removed } = await syncPositions(result.positions);
+  await syncAssets(result.positions.map((p) => p.ticker));
   console.log(`✔ Posições sincronizadas no Supabase (${removed} removidas).`);
 }
 

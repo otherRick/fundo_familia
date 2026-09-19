@@ -43,14 +43,35 @@ function normalizeText(value: unknown): string {
     .replace(/\s+/g, " ");
 }
 
-/** Converte o valor de uma célula para número (aceita formatos pt-BR). */
+/**
+ * Converte o valor de uma célula para número.
+ * Aceita moeda ("R$ 9,22", "R$ 2.081,80") e o formato do Excel ("R$ 9.22",
+ * "R$ 2,081.80"), com vírgula de milhar e ponto decimal.
+ */
 function parseNumber(value: unknown): number {
   if (typeof value === "number") return value;
   if (typeof value === "string") {
     let s = value.trim();
-    if (s.includes(",")) {
-      s = s.replace(/\./g, "").replace(",", ".");
+    if (!s) return 0;
+
+    // Remove símbolo monetário, espaços (inclui o espaço não separável \u00A0).
+    s = s.replace(/[R$\u00A0\s]/g, "");
+
+    const comma = s.lastIndexOf(",");
+    const dot = s.lastIndexOf(".");
+
+    if (comma !== -1 && dot !== -1) {
+      // O último separador é o decimal (ex.: "2,081.80" -> 2081.80).
+      s =
+        dot > comma
+          ? s.replace(/,/g, "")
+          : s.replace(/\./g, "").replace(",", ".");
+    } else if (comma !== -1) {
+      // Só vírgula: decimal quando há até 2 casas (ex.: "9,22"), senão milhar.
+      s = s.length - comma - 1 <= 2 ? s.replace(",", ".") : s.replace(/,/g, "");
     }
+    // Só ponto: decimal (ex.: "497.88").
+
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
   }
