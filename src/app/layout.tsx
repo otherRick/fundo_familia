@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Transparência",
+  title: "Fundo Família",
   description:
-    "Área privada destinada ao acompanhamento das contribuições e investimentos.",
+    "Transparência das contribuições e investimentos.",
 };
 
 export default function RootLayout({
@@ -29,7 +29,13 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-0 bg-[url('/fundofamilia.png')] bg-cover bg-center opacity-50"
+        />
+        <div className="relative z-10">{children}</div>
+      </body>
     </html>
   );
 }

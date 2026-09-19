@@ -16,12 +16,10 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10">
+    <main className="flex min-h-svh items-center justify-center px-4 py-10">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">
-            Transparência das Contribuições
-          </CardTitle>
+          <CardTitle className="text-2xl">Fundo Família</CardTitle>
           <CardDescription>
             Área privada destinada ao acompanhamento das contribuições e
             investimentos.
