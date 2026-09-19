@@ -1,0 +1,38 @@
+name: Heartbeat keep-alive
+
+# Mantém o projeto Supabase (plano gratuito) ativo.
+# O Supabase pausa projetos gratuitos após ~7 dias sem atividade;
+# este job faz um "ping" na API REST a cada 5 dias para evitar a pausa.
+
+on:
+  schedule:
+    # A cada 5 dias, à meia-noite (UTC).
+    # Rodará nos dias 1, 6, 11, 16, 21, 26 e 31 de cada mês.
+    - cron: "0 0 */5 * *"
+  workflow_dispatch: {} # permite disparar manualmente pela aba Actions
+
+jobs:
+  heartbeat:
+    name: Ping Supabase
+    runs-on: ubuntu-latest
+    steps:
+      - name: Heartbeat na API REST do Supabase
+        run: |
+          set -euo pipefail
+
+          status=$(curl --silent --show-error \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request GET \
+            --header "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            --header "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/contributions?select=id&limit=1")
+
+          echo "Supabase respondeu HTTP ${status}"
+
+          if [ "${status}" != "200" ]; then
+            echo "::error::Heartbeat falhou (HTTP ${status}). Verifique as secrets SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY."
+            exit 1
+          fi
+
+          echo "::notice::Heartbeat OK — projeto Supabase mantido ativo."
