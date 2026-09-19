@@ -86,7 +86,7 @@ export function DashboardTabs({
             </p>
             <DonutChart
               data={allocation}
-              emptyMessage="Cotações indisponíveis para montar a alocação."
+              emptyMessage="Em breve"
             />
           </section>
         )}
@@ -99,7 +99,7 @@ export function DashboardTabs({
             </p>
             <DonutChart
               data={sectors}
-              emptyMessage="Cotações indisponíveis para montar a distribuição por setor."
+              emptyMessage="Em breve"
             />
           </section>
         )}

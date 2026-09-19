@@ -54,8 +54,8 @@ async function request(tickers: string[]): Promise<QuoteMap> {
 /**
  * Consulta cotações atuais no servidor.
  *
- * Tenta primeiro em lote e, para os tickers que ficarem sem cotação, tenta
- * individualmente — assim um ticker inválido não derruba os demais.
+ * O plano gratuito da BRAPI permite apenas 1 ativo por requisição e 1 requisição
+ * simultânea. Por isso cada ticker é consultado individualmente e em sequência.
  */
 export async function fetchQuotes(tickers: string[]): Promise<QuoteMap> {
   const unique = [...new Set(tickers)].filter(Boolean);
@@ -63,21 +63,12 @@ export async function fetchQuotes(tickers: string[]): Promise<QuoteMap> {
   for (const ticker of unique) map[ticker] = null;
   if (unique.length === 0) return map;
 
-  const batch = await request(unique);
   for (const ticker of unique) {
-    if (batch[ticker] != null) map[ticker] = batch[ticker];
-  }
-
-  const missing = unique.filter((ticker) => map[ticker] == null);
-  if (missing.length > 0 && missing.length < unique.length) {
-    const individual = await Promise.all(missing.map((t) => request([t])));
-    for (const result of individual) {
-      for (const [ticker, price] of Object.entries(result)) {
-        if (price != null) map[ticker] = price;
-      }
-    }
+    const result = await request([ticker]);
+    if (result[ticker] != null) map[ticker] = result[ticker];
   }
 
   return map;
 }
+
 

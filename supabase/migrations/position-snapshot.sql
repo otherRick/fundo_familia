@@ -9,6 +9,13 @@ alter table public.positions
   add column if not exists b3_value numeric(14, 2);
 
 -- O XLSX de posição NÃO fornece preço médio/custo. Esses campos passam a ser
--- opcionais e virão do histórico de negociações (futuro).
+-- opcionais, SEM default (para não virar 0) — virão do histórico (futuro).
 alter table public.positions alter column average_price drop not null;
+alter table public.positions alter column average_price drop default;
 alter table public.positions alter column invested_value drop not null;
+alter table public.positions alter column invested_value drop default;
+
+-- Corrige registros que foram importados com 0 (default antigo) -> null.
+update public.positions set average_price = null where average_price = 0;
+update public.positions set invested_value = null where invested_value = 0;
+
