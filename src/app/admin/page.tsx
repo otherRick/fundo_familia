@@ -4,13 +4,29 @@ import { Button } from "@/components/ui/button";
 import { ContributionForm } from "@/components/admin/contribution-form";
 import { ImportForm } from "@/components/admin/import-form";
 import { OperationForm } from "@/components/admin/operation-form";
+import { OperationsManager } from "@/components/admin/operations-manager";
 import { OperationsImportForm } from "@/components/admin/operations-import-form";
 import { getContributors } from "@/lib/contributions";
 import { listContributions } from "@/lib/supabase/contributions";
+import { listOperations } from "@/lib/supabase/b3";
+import { listAssets } from "@/lib/supabase/assets";
 
 export default async function AdminPage() {
-  const contributions = await listContributions();
+  const [contributions, operations, assets] = await Promise.all([
+    listContributions(),
+    listOperations(),
+    listAssets(),
+  ]);
   const names = getContributors(contributions);
+  const assetByTicker = new Map(assets.map((asset) => [asset.ticker, asset]));
+  const operationsWithAssets = operations.map((operation) => {
+    const asset = assetByTicker.get(operation.ticker);
+    return {
+      ...operation,
+      name: asset?.name || operation.ticker,
+      category: asset?.type ?? "",
+    };
+  });
 
   return (
     <main className="mx-auto my-4 w-full max-w-2xl rounded-2xl border bg-white/85 px-4 py-8 backdrop-blur-md sm:my-8 sm:px-8 sm:py-12">
@@ -77,13 +93,14 @@ export default async function AdminPage() {
         <div className="mt-6 border-t pt-4">
           <h3 className="text-sm font-medium">Adicionar negociação manualmente</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Registrar uma compra ou venda avulsa — vale igual à importação pelo
-            Excel.
+            Registrar uma compra ou venda avulsa — de ações ou Tesouro Direto —
+            vale igual à importação pelo Excel.
           </p>
           <OperationForm />
         </div>
+
+        <OperationsManager operations={operationsWithAssets} />
       </section>
     </main>
   );
 }
-

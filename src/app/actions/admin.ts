@@ -9,15 +9,79 @@ import { isAuthenticated } from "@/lib/session";
 import { syncAssets } from "@/lib/supabase/assets";
 import {
   consolidateAndUpsertPositions,
+  deleteOperation as deleteOperationRecord,
   insertOperations,
+  listOperations,
+  updateOperation as updateOperationRecord,
 } from "@/lib/supabase/b3";
 import { insertContribution } from "@/lib/supabase/contributions";
 import { syncPositions } from "@/lib/supabase/positions";
+import { isTreasuryTicker, normalizeTreasuryTicker } from "@/lib/treasury";
 
 export type AdminState = {
   error?: string;
   success?: string;
 };
+
+type OperationPayload = {
+  ticker: string;
+  side: "buy" | "sell";
+  date: string;
+  quantity: number;
+  price: number;
+  totalValue: number;
+};
+
+function parseOperationPayload(formData: FormData):
+  | { error: string }
+  | { value: OperationPayload } {
+  const rawTicker = formData.get("ticker");
+  const rawSide = formData.get("side");
+  const rawDate = formData.get("date");
+  const rawQuantity = formData.get("quantity");
+  const rawPrice = formData.get("price");
+
+  const rawSymbol = typeof rawTicker === "string" ? rawTicker.trim() : "";
+  const isTreasury = isTreasuryTicker(rawSymbol);
+  let ticker = isTreasury
+    ? normalizeTreasuryTicker(rawSymbol)
+    : rawSymbol.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!isTreasury && /^[A-Z]{4,6}\d{1,3}F$/.test(ticker)) ticker = ticker.slice(0, -1);
+
+  const side: "buy" | "sell" | null =
+    rawSide === "buy" || rawSide === "sell" ? rawSide : null;
+  const date = typeof rawDate === "string" ? rawDate : "";
+  const quantity =
+    typeof rawQuantity === "string" ? Number(rawQuantity.replace(",", ".")) : NaN;
+  const price =
+    typeof rawPrice === "string" ? Number(rawPrice.replace(",", ".")) : NaN;
+
+  if (!isTreasury && !/^[A-Z]{4,6}\d{1,3}$/.test(ticker)) {
+    return {
+      error:
+        "Informe um ticker válido (ex.: PETR4) ou o nome/código do Tesouro (ex.: Tesouro IPCA+ 2035).",
+    };
+  }
+  if (!side) return { error: "Informe o tipo de operação (compra ou venda)." };
+  if (!date) return { error: "Informe a data." };
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return { error: "Informe uma quantidade válida." };
+  }
+  if (!Number.isFinite(price) || price <= 0) {
+    return { error: "Informe um preço válido." };
+  }
+
+  return {
+    value: {
+      ticker,
+      side,
+      date,
+      quantity,
+      price,
+      totalValue: Math.round((quantity * price + Number.EPSILON) * 100) / 100,
+    },
+  };
+}
 
 /** Registra uma nova contribuição em `contributions` (server-only). */
 export async function registerContribution(
@@ -182,40 +246,9 @@ export async function registerOperation(
     return { error: "Sessão expirada. Faça login novamente." };
   }
 
-  const rawTicker = formData.get("ticker");
-  const rawSide = formData.get("side");
-  const rawDate = formData.get("date");
-  const rawQuantity = formData.get("quantity");
-  const rawPrice = formData.get("price");
-
-  let ticker =
-    typeof rawTicker === "string"
-      ? rawTicker.trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
-      : "";
-  // Remove o "F" de tickers fracionários (ex.: PETR4F -> PETR4).
-  if (/^[A-Z]{4,6}\d{1,3}F$/.test(ticker)) ticker = ticker.slice(0, -1);
-
-  const side: "buy" | "sell" | null =
-    rawSide === "buy" || rawSide === "sell" ? rawSide : null;
-  const date = typeof rawDate === "string" ? rawDate : "";
-  const quantity =
-    typeof rawQuantity === "string" ? Number(rawQuantity.replace(",", ".")) : NaN;
-  const price =
-    typeof rawPrice === "string" ? Number(rawPrice.replace(",", ".")) : NaN;
-
-  if (!/^[A-Z]{4,6}\d{1,3}$/.test(ticker)) {
-    return { error: "Informe um ticker válido (ex.: PETR4)." };
-  }
-  if (!side) return { error: "Informe o tipo de operação (compra ou venda)." };
-  if (!date) return { error: "Informe a data." };
-  if (!Number.isFinite(quantity) || quantity <= 0) {
-    return { error: "Informe uma quantidade válida." };
-  }
-  if (!Number.isFinite(price) || price <= 0) {
-    return { error: "Informe um preço válido." };
-  }
-
-  const totalValue = Math.round((quantity * price + Number.EPSILON) * 100) / 100;
+  const parsed = parseOperationPayload(formData);
+  if ("error" in parsed) return parsed;
+  const { ticker, side, date, quantity, price, totalValue } = parsed.value;
 
   try {
     const inserted = await insertOperations([
@@ -229,6 +262,7 @@ export async function registerOperation(
         source: "manual",
       },
     ]);
+    await syncAssets([ticker]);
     const { updated } = await consolidateAndUpsertPositions();
 
     revalidatePath("/dashboard");
@@ -246,3 +280,86 @@ export async function registerOperation(
   }
 }
 
+/** Atualiza uma negociação e reconsolida as posições derivadas do histórico. */
+export async function editOperation(
+  _prevState: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  if (!(await isAuthenticated())) {
+    return { error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const rawId = formData.get("id");
+  const id = typeof rawId === "string" ? Number(rawId) : NaN;
+  if (!Number.isInteger(id) || id <= 0) return { error: "Operação inválida." };
+
+  const parsed = parseOperationPayload(formData);
+  if ("error" in parsed) return parsed;
+  const { ticker, side, date, quantity, price, totalValue } = parsed.value;
+
+  try {
+    const previousOperation = (await listOperations()).find(
+      (operation) => operation.id === id,
+    );
+    if (!previousOperation) return { error: "Operação não encontrada." };
+    await updateOperationRecord({
+      id,
+      ticker,
+      operationType: side,
+      quantity,
+      unitPrice: price,
+      totalValue,
+      operationDate: date,
+      source: "",
+    });
+    await syncAssets([ticker]);
+    const { updated } = await consolidateAndUpsertPositions([
+      previousOperation.ticker,
+    ]);
+
+    revalidatePath("/dashboard");
+    revalidatePath("/admin");
+    return { success: `Operação atualizada · ${updated} posições atualizadas.` };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Erro ao atualizar a operação.",
+    };
+  }
+}
+
+/** Exclui uma negociação confirmada e reconsolida as posições restantes. */
+export async function removeOperation(
+  _prevState: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  if (!(await isAuthenticated())) {
+    return { error: "Sessão expirada. Faça login novamente." };
+  }
+
+  const rawId = formData.get("id");
+  const id = typeof rawId === "string" ? Number(rawId) : NaN;
+  if (!Number.isInteger(id) || id <= 0) return { error: "Operação inválida." };
+
+  try {
+    const previousOperation = (await listOperations()).find(
+      (operation) => operation.id === id,
+    );
+    if (!previousOperation) return { error: "Operação não encontrada." };
+    await deleteOperationRecord(id);
+    const { updated, removed } = await consolidateAndUpsertPositions([
+      previousOperation.ticker,
+    ]);
+
+    revalidatePath("/dashboard");
+    revalidatePath("/admin");
+    return {
+      success: `Operação excluída · ${updated} posições atualizadas${removed > 0 ? ` · ${removed} removidas` : ""}.`,
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error ? error.message : "Erro ao excluir a operação.",
+    };
+  }
+}

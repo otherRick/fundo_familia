@@ -34,7 +34,7 @@ export function PositionsList({
                 )}
               </div>
               <span className="text-sm text-muted-foreground">
-                {position.quantity} cotas
+                {position.quantity} {position.type === "Tesouro Direto" ? "títulos" : "cotas"}
               </span>
             </div>
 
@@ -114,5 +114,4 @@ function resultTone(result: number | null): string {
   if (result < 0) return "text-destructive";
   return "";
 }
-
 

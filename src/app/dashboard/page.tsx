@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { fetchQuotes } from "@/lib/brapi";
+import { fetchTreasurySellQuotes, isTreasuryTicker } from "@/lib/treasury";
 import {
   getContributorsSummary,
   getTotalOverall,
@@ -13,17 +14,29 @@ import {
   type ChartDatum,
 } from "@/lib/portfolio";
 import { listAssets } from "@/lib/supabase/assets";
+import { listOperations } from "@/lib/supabase/b3";
 import { listContributions } from "@/lib/supabase/contributions";
 import { listPositions } from "@/lib/supabase/positions";
 
 export default async function DashboardPage() {
-  const [positions, contributions, assets] = await Promise.all([
+  const [positions, contributions, assets, operations] = await Promise.all([
     listPositions(),
     listContributions(),
     listAssets(),
+    listOperations(),
   ]);
 
-  const quotes = await fetchQuotes(positions.map((p) => p.ticker));
+  const stockTickers = positions
+    .map((p) => p.ticker)
+    .filter((ticker) => !isTreasuryTicker(ticker));
+  const treasuryTickers = positions
+    .map((p) => p.ticker)
+    .filter(isTreasuryTicker);
+  const [stockQuotes, treasuryQuotes] = await Promise.all([
+    fetchQuotes(stockTickers),
+    fetchTreasurySellQuotes(treasuryTickers),
+  ]);
+  const quotes = { ...stockQuotes, ...treasuryQuotes };
   const valuations = valuatePositions(positions, quotes);
   const summary = summarizePortfolio(valuations);
 
@@ -32,6 +45,18 @@ export default async function DashboardPage() {
 
   // Classificação por setor a partir da tabela `assets` (fallback: Outros).
   const sectorByTicker = new Map(assets.map((a) => [a.ticker, a.sector]));
+  const assetByTicker = new Map(assets.map((asset) => [asset.ticker, asset]));
+  const investments = operations
+    .filter((operation) => operation.operationType === "buy")
+    .map((operation) => {
+      const asset = assetByTicker.get(operation.ticker);
+      return {
+        ...operation,
+        name: asset?.name || operation.ticker,
+        category: asset?.type ?? "",
+      };
+    })
+    .sort((a, b) => b.operationDate.localeCompare(a.operationDate) || b.id - a.id);
 
   // Distribuição do patrimônio atual por ativo.
   const allocation = buildChartData(
@@ -84,6 +109,7 @@ export default async function DashboardPage() {
         allocation={allocation}
         sectors={sectors}
         contributors={contributors}
+        investments={investments}
       />
     </main>
   );
@@ -99,6 +125,4 @@ function buildChartData(items: { name: string; value: number }[]): ChartDatum[] 
     }))
     .sort((a, b) => b.value - a.value);
 }
-
-
 

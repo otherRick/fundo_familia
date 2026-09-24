@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from "./server";
 import { assetSeed, type Asset } from "../../config/assets";
+import { isTreasuryTicker } from "../treasury";
 
 export async function listAssets(): Promise<Asset[]> {
   const supabase = getSupabaseServerClient();
@@ -66,7 +67,16 @@ export async function syncAssets(tickers: string[]): Promise<void> {
 
   const assets: Asset[] = unique.map((ticker) => {
     const known = seedByTicker.get(ticker);
-    return known ?? { ticker, name: ticker, sector: "Outros", type: "" };
+    if (known) return known;
+    if (isTreasuryTicker(ticker)) {
+      return {
+        ticker,
+        name: ticker,
+        sector: "Renda fixa",
+        type: "Tesouro Direto",
+      };
+    }
+    return { ticker, name: ticker, sector: "Outros", type: "" };
   });
 
   await upsertAssets(assets);

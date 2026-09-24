@@ -4,6 +4,7 @@ import type { Position } from "../b3/types";
 
 /** Operação da B3 persistida (formato da tabela `b3_operations`). */
 export type B3Operation = {
+  id: number;
   ticker: string;
   operationType: "buy" | "sell";
   quantity: number;
@@ -13,6 +14,8 @@ export type B3Operation = {
   source: string;
 };
 
+export type NewB3Operation = Omit<B3Operation, "id">;
+
 export async function listOperations(): Promise<B3Operation[]> {
   const supabase = getSupabaseServerClient();
   if (!supabase) return [];
@@ -20,13 +23,14 @@ export async function listOperations(): Promise<B3Operation[]> {
   const { data, error } = await supabase
     .from("b3_operations")
     .select(
-      "ticker, operation_type, quantity, unit_price, total_value, operation_date, source",
+      "id, ticker, operation_type, quantity, unit_price, total_value, operation_date, source",
     )
     .order("operation_date", { ascending: true });
 
   if (error) throw new Error(`Falha ao ler operações: ${error.message}`);
 
   return (data ?? []).map((row) => ({
+    id: Number(row.id),
     ticker: row.ticker,
     operationType: row.operation_type,
     quantity: Number(row.quantity),
@@ -41,7 +45,7 @@ export async function listOperations(): Promise<B3Operation[]> {
  * Chave natural de uma operação. Serve para deduplicação: reprocessar o mesmo
  * XLSX (ou arquivos com as mesmas operações) não gera registros repetidos.
  */
-function operationKey(op: B3Operation): string {
+function operationKey(op: NewB3Operation): string {
   return [
     op.ticker,
     op.operationType,
@@ -53,7 +57,7 @@ function operationKey(op: B3Operation): string {
 }
 
 /** Insere operações evitando duplicatas. Retorna a quantidade inserida. */
-export async function insertOperations(ops: B3Operation[]): Promise<number> {
+export async function insertOperations(ops: NewB3Operation[]): Promise<number> {
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     throw new Error(
@@ -101,11 +105,49 @@ export async function insertOperations(ops: B3Operation[]): Promise<number> {
   return toInsert.length;
 }
 
+/** Atualiza uma operação existente pelo ID e preserva o restante do histórico. */
+export async function updateOperation(operation: B3Operation): Promise<void> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error(
+      "Supabase não configurado (defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY).",
+    );
+  }
+
+  const { error } = await supabase
+    .from("b3_operations")
+    .update({
+      ticker: operation.ticker,
+      operation_type: operation.operationType,
+      quantity: operation.quantity,
+      unit_price: operation.unitPrice,
+      total_value: operation.totalValue,
+      operation_date: operation.operationDate,
+    })
+    .eq("id", operation.id);
+  if (error) throw new Error(`Falha ao atualizar operação: ${error.message}`);
+}
+
+/** Exclui uma única operação pelo ID. */
+export async function deleteOperation(id: number): Promise<void> {
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    throw new Error(
+      "Supabase não configurado (defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY).",
+    );
+  }
+
+  const { error } = await supabase.from("b3_operations").delete().eq("id", id);
+  if (error) throw new Error(`Falha ao excluir operação: ${error.message}`);
+}
+
 /**
  * Reconsolida as posições a partir das operações salvas e grava em `positions`.
  * Mantém a lógica de consolidação (custo médio) separada da camada de banco.
  */
-export async function consolidateAndUpsertPositions(): Promise<{
+export async function consolidateAndUpsertPositions(
+  previousOperationTickers: string[] = [],
+): Promise<{
   positions: Position[];
   updated: number;
   removed: number;
@@ -133,6 +175,7 @@ export async function consolidateAndUpsertPositions(): Promise<{
     const { error } = await supabase.from("positions").upsert(
       positions.map((p) => ({
         ticker: p.ticker,
+        type: p.type,
         quantity: p.quantity,
         average_price: p.averagePrice,
         invested_value: p.investedValue,
@@ -146,7 +189,10 @@ export async function consolidateAndUpsertPositions(): Promise<{
   // Remove apenas posições que têm operações e ficaram totalmente vendidas.
   // Posições vindas somente do snapshot (sem operações) são preservadas.
   const consolidatedTickers = new Set(positions.map((p) => p.ticker));
-  const operationTickers = new Set(operations.map((op) => op.ticker));
+  const operationTickers = new Set([
+    ...operations.map((op) => op.ticker),
+    ...previousOperationTickers,
+  ]);
   const soldOut = [...operationTickers].filter(
     (ticker) => !consolidatedTickers.has(ticker),
   );

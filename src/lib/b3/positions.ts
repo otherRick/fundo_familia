@@ -1,4 +1,5 @@
 import type { Operation, Position } from "./types";
+import { isTreasuryTicker } from "../treasury";
 
 function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -46,7 +47,7 @@ export function consolidatePositions(operations: Operation[]): Position[] {
     if (s.quantity <= 0) continue;
     positions.push({
       ticker,
-      type: "",
+      type: isTreasuryTicker(ticker) ? "Tesouro Direto" : "",
       quantity: round2(s.quantity),
       b3ClosingPrice: null,
       b3Value: null,

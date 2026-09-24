@@ -12,14 +12,8 @@ export function Participants({ summary }: { summary: ContributorSummary[] }) {
 
       <ul className='mt-4 space-y-1.5'>
         {summary.map((person) => (
-          <li
-            key={person.name}
-            className='flex items-center gap-x-3 rounded-lg border px-3 py-2'
-          >
-            <span
-              className='w-28 shrink-0 truncate font-medium sm:w-40'
-              title={person.name}
-            >
+          <li key={person.name} className='flex items-center gap-x-3 rounded-lg border px-3 py-2'>
+            <span className='w-28 shrink-0 truncate font-medium sm:w-40' title={person.name}>
               {person.name}
             </span>
 
