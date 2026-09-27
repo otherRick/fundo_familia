@@ -2,13 +2,13 @@ name: Heartbeat keep-alive
 
 # Mantém o projeto Supabase (plano gratuito) ativo.
 # O Supabase pausa projetos gratuitos após ~7 dias sem atividade;
-# este job faz um "ping" na API REST a cada 5 dias para evitar a pausa.
+# este job faz um "ping" na API REST a cada 3 dias para evitar a pausa.
 
 on:
   schedule:
-    # A cada 5 dias, à meia-noite (UTC).
-    # Rodará nos dias 1, 6, 11, 16, 21, 26 e 31 de cada mês.
-    - cron: "0 0 */5 * *"
+    # A cada 3 dias, à meia-noite (UTC).
+    # Rodará nos dias 1, 4, 7, 10, 13, 16, 19, 22, 25, 28 e 31 de cada mês.
+    - cron: "0 0 */3 * *"
   workflow_dispatch: {} # permite disparar manualmente pela aba Actions
 
 jobs:
