@@ -3,7 +3,7 @@ name: Keep server alive
 on:
   schedule:
     # GitHub Actions interpreta o horário em UTC.
-    - cron: "0 9 */5 * *"
+    - cron: "0 9 */3 * *"
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,12 @@ jobs:
     steps:
       - name: Ping application
         env:
-          KEEPALIVE_URL: ${{ vars.KEEPALIVE_URL }}
+          # Aceita tanto uma variável quanto uma secret do repositório.
+          KEEPALIVE_URL: ${{ vars.KEEPALIVE_URL || secrets.KEEPALIVE_URL }}
         run: |
-          test -n "$KEEPALIVE_URL"
+          if [ -z "$KEEPALIVE_URL" ]; then
+            echo "::notice::Nenhuma KEEPALIVE_URL configurada; o heartbeat do Supabase continuará mantendo o projeto ativo."
+            exit 0
+          fi
+
           curl --fail --silent --show-error --location --max-time 30 "$KEEPALIVE_URL"
