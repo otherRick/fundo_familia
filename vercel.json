@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/supabase-heartbeat",
-      "schedule": "43 5,13,21 * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
