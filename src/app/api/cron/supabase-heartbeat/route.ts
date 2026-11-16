@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       return Response.json({ ok: false }, { status: 503 });
     }
 
+    console.info("Supabase heartbeat: consulta concluída.");
     return Response.json({ ok: true });
   } catch {
     console.error("Supabase heartbeat: falha de conexão.");
