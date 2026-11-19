@@ -22,7 +22,7 @@ async function request(tickers: string[]): Promise<QuoteMap> {
   try {
     const res = await fetch(url, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-      cache: "no-store",
+      next: { revalidate: 5 * 60 },
       signal: controller.signal,
     });
 

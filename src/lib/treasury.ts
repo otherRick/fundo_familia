@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 /**
  * Consulta gratuita ao histórico público do Tesouro Direto. O arquivo é
  * publicado pelo Tesouro Transparente e contém títulos que não são mais
@@ -136,7 +138,8 @@ async function loadTreasuryRows(): Promise<TreasuryRow[]> {
 
   try {
     const response = await fetch(TREASURY_PRICES_URL, {
-      next: { revalidate: 60 * 60 },
+      // O CSV ultrapassa o limite de 2 MB do cache de fetch do Next.js.
+      cache: "no-store",
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -147,6 +150,26 @@ async function loadTreasuryRows(): Promise<TreasuryRow[]> {
     clearTimeout(timeout);
   }
 }
+
+/** Só a última cotação de cada vencimento é necessária no dashboard. */
+function latestTreasuryRows(rows: TreasuryRow[]): TreasuryRow[] {
+  const latest = new Map<string, TreasuryRow>();
+  for (const row of rows) {
+    const key = `${row.title}\0${row.maturityDate}`;
+    const current = latest.get(key);
+    if (!current || (toIsoDate(row.date) ?? "") > (toIsoDate(current.date) ?? "")) {
+      latest.set(key, row);
+    }
+  }
+  return [...latest.values()];
+}
+
+// O resultado compacto cabe no cache mesmo quando o CSV de origem não cabe.
+const loadLatestTreasuryRows = unstable_cache(
+  async () => latestTreasuryRows(await loadTreasuryRows()),
+  ["treasury-latest-rows-v1"],
+  { revalidate: 60 * 60 },
+);
 
 /**
  * Busca o PU de um título na data solicitada. Como o arquivo é diário, em fins
@@ -206,7 +229,7 @@ export async function fetchTreasurySellQuotes(
   if (unique.length === 0) return result;
 
   try {
-    const rows = await loadTreasuryRows();
+    const rows = await loadLatestTreasuryRows();
     for (const ticker of unique) {
       result[ticker] = findTreasuryPriceInRows(rows, ticker, today)?.sellPrice ?? null;
     }
