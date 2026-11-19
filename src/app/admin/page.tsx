@@ -1,5 +1,6 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
+import { leaveAdmin } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { ContributionForm } from "@/components/admin/contribution-form";
 import { ImportForm } from "@/components/admin/import-form";
@@ -10,8 +11,13 @@ import { getContributors } from "@/lib/contributions";
 import { listContributions } from "@/lib/supabase/contributions";
 import { listOperations } from "@/lib/supabase/b3";
 import { listAssets } from "@/lib/supabase/assets";
+import { isAdminAuthenticated } from "@/lib/session";
 
 export default async function AdminPage() {
+  if (!(await isAdminAuthenticated())) {
+    redirect("/admin/entrar");
+  }
+
   const [contributions, operations, assets] = await Promise.all([
     listContributions(),
     listOperations(),
@@ -39,9 +45,9 @@ export default async function AdminPage() {
             Gerenciar contribuições e investimentos.
           </p>
         </div>
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/dashboard">Voltar</Link>
-        </Button>
+        <form action={leaveAdmin}>
+          <Button type="submit" variant="ghost" size="sm">Voltar</Button>
+        </form>
       </header>
 
       <section className="mt-8 rounded-lg border p-5">

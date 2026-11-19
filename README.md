@@ -35,6 +35,20 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+### Acesso administrativo
+
+O link discreto `admin` fica no rodapé do dashboard. Além da senha de acesso
+geral, o painel exige uma senha adicional. Configure `ADMIN_PASSWORD_HASH` no
+ambiente do servidor com o SHA-256 hexadecimal dessa senha:
+
+```bash
+printf '%s' 'SUA_SENHA_ADMIN' | shasum -a 256
+```
+
+Use o valor de 64 caracteres em `.env.local` e nos ambientes de deploy. O
+cookie administrativo expira após uma hora; o botão **Voltar** encerra esse
+acesso. Nunca coloque a senha ou o hash em variáveis `NEXT_PUBLIC_`.
+
 ### Supabase heartbeat
 
 O GitHub Actions consulta a tabela `contributions` três vezes por dia. A Vercel

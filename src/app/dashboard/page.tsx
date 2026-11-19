@@ -88,12 +88,6 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href="/admin"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Administração
-          </Link>
           <form action={logout}>
             <Button type="submit" variant="ghost" size="sm">
               Sair
@@ -111,6 +105,14 @@ export default async function DashboardPage() {
         contributors={contributors}
         investments={investments}
       />
+      <footer className="mt-10 border-t pt-5 text-center">
+        <Link
+          href="/admin/entrar"
+          className="text-xs text-muted-foreground/70 underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          admin
+        </Link>
+      </footer>
     </main>
   );
 }

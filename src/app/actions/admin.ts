@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { normalizeOperations } from "@/lib/b3/operations";
 import { parsePositionXlsx } from "@/lib/b3/position-xlsx";
 import { readXlsxRows } from "@/lib/b3/xlsx";
-import { isAuthenticated } from "@/lib/session";
+import { isAdminAuthenticated } from "@/lib/session";
 import { syncAssets } from "@/lib/supabase/assets";
 import {
   consolidateAndUpsertPositions,
@@ -88,8 +88,8 @@ export async function registerContribution(
   _prevState: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
-  if (!(await isAuthenticated())) {
-    return { error: "Sessão expirada. Faça login novamente." };
+  if (!(await isAdminAuthenticated())) {
+    return { error: "Acesso administrativo expirado. Digite a senha novamente." };
   }
 
   const rawPerson = formData.get("personName");
@@ -132,8 +132,8 @@ export async function importB3(
   _prevState: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
-  if (!(await isAuthenticated())) {
-    return { error: "Sessão expirada. Faça login novamente." };
+  if (!(await isAdminAuthenticated())) {
+    return { error: "Acesso administrativo expirado. Digite a senha novamente." };
   }
 
   const file = formData.get("file");
@@ -182,8 +182,8 @@ export async function importOperationsB3(
   _prevState: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
-  if (!(await isAuthenticated())) {
-    return { error: "Sessão expirada. Faça login novamente." };
+  if (!(await isAdminAuthenticated())) {
+    return { error: "Acesso administrativo expirado. Digite a senha novamente." };
   }
 
   const file = formData.get("file");
@@ -242,8 +242,8 @@ export async function registerOperation(
   _prevState: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
-  if (!(await isAuthenticated())) {
-    return { error: "Sessão expirada. Faça login novamente." };
+  if (!(await isAdminAuthenticated())) {
+    return { error: "Acesso administrativo expirado. Digite a senha novamente." };
   }
 
   const parsed = parseOperationPayload(formData);
@@ -285,8 +285,8 @@ export async function editOperation(
   _prevState: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
-  if (!(await isAuthenticated())) {
-    return { error: "Sessão expirada. Faça login novamente." };
+  if (!(await isAdminAuthenticated())) {
+    return { error: "Acesso administrativo expirado. Digite a senha novamente." };
   }
 
   const rawId = formData.get("id");
@@ -333,8 +333,8 @@ export async function removeOperation(
   _prevState: AdminState,
   formData: FormData,
 ): Promise<AdminState> {
-  if (!(await isAuthenticated())) {
-    return { error: "Sessão expirada. Faça login novamente." };
+  if (!(await isAdminAuthenticated())) {
+    return { error: "Acesso administrativo expirado. Digite a senha novamente." };
   }
 
   const rawId = formData.get("id");

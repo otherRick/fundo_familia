@@ -2,9 +2,11 @@ import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const SESSION_COOKIE_NAME = "transparencia_session";
+export const ADMIN_SESSION_COOKIE_NAME = "transparencia_admin_session";
 
 /** Duração da sessão em segundos (7 dias). */
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
+export const ADMIN_SESSION_MAX_AGE = 60 * 60;
 
 type SessionPayload = {
   /** issued at (segundos) */
@@ -46,6 +48,16 @@ export function createSessionToken(): string {
   return `${encoded}.${sign(encoded, secret)}`;
 }
 
+/** A assinatura administrativa tem um propósito distinto da sessão comum. */
+export function createAdminSessionToken(): string {
+  const secret = getSessionSecret();
+  const now = Math.floor(Date.now() / 1000);
+  const encoded = Buffer.from(
+    JSON.stringify({ iat: now, exp: now + ADMIN_SESSION_MAX_AGE }),
+  ).toString("base64url");
+  return `${encoded}.${sign(`admin:${encoded}`, secret)}`;
+}
+
 /** Verifica assinatura e validade de um token de sessão. */
 export function verifySessionToken(token: string): boolean {
   try {
@@ -66,6 +78,22 @@ export function verifySessionToken(token: string): boolean {
   }
 }
 
+export function verifyAdminSessionToken(token: string): boolean {
+  try {
+    const [encoded, signature, extra] = token.split(".");
+    if (!encoded || !signature || extra) return false;
+    if (!safeEqual(signature, sign(`admin:${encoded}`, getSessionSecret()))) return false;
+
+    const payload = JSON.parse(
+      Buffer.from(encoded, "base64url").toString("utf8"),
+    ) as SessionPayload;
+    const now = Math.floor(Date.now() / 1000);
+    return typeof payload.exp === "number" && now < payload.exp;
+  } catch {
+    return false;
+  }
+}
+
 /** Lê o cookie de sessão do request atual. */
 export async function getSessionCookie(): Promise<string | undefined> {
   const cookieStore = await cookies();
@@ -77,4 +105,12 @@ export async function isAuthenticated(): Promise<boolean> {
   const token = await getSessionCookie();
   if (!token) return false;
   return verifySessionToken(token);
+}
+
+/** Exige as duas sessões: a geral e a autorização administrativa. */
+export async function isAdminAuthenticated(): Promise<boolean> {
+  if (!(await isAuthenticated())) return false;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
+  return token ? verifyAdminSessionToken(token) : false;
 }
