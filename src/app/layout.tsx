@@ -13,10 +13,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const title = "Fundo Família";
+const description = "Transparência das contribuições e investimentos.";
+
 export const metadata: Metadata = {
-  title: "Fundo Família",
-  description:
-    "Transparência das contribuições e investimentos.",
+  title,
+  description,
+  openGraph: {
+    title,
+    description,
+    siteName: title,
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+  },
 };
 
 export default function RootLayout({
@@ -39,4 +53,3 @@ export default function RootLayout({
     </html>
   );
 }
-
